@@ -10,7 +10,7 @@ namespace BookingSystem
     public class BookingManager : IBookingManager
     {
         // thread safe data structure that maintains room id and reservationinfo against this room
-        public ConcurrentDictionary<int, ReservationInfo> Reservations;
+        public ConcurrentDictionary<int, List<ReservationInfo>> Reservations;
         List<int> rooms; 
         
         public BookingManager(List<int> roomNos)
@@ -18,7 +18,7 @@ namespace BookingSystem
             // initialise rooms 
             rooms = roomNos;            
             // intialise empty reservations concurrent dict
-            Reservations = new ConcurrentDictionary<int, ReservationInfo>();
+            Reservations = new ConcurrentDictionary<int, List<ReservationInfo>>();
         }
 
         public void AddBooking(string guest, int room, DateTime date)
@@ -26,8 +26,12 @@ namespace BookingSystem
 
             if (IsRoomAvailable(room, date))
             {
-                var reservation = new ReservationInfo() { StartDate = date, EndDate = date, RoomId = room };
-                Reservations.TryAdd(room, reservation);
+                var reservation = new ReservationInfo() { BookedDate = date,RoomId = room };
+                if (Reservations.ContainsKey(room))
+                {
+                    Reservations[room].Add(reservation);
+                }
+                Reservations.TryAdd(room, new List<ReservationInfo>() { reservation });
             }
             else
             {
@@ -38,25 +42,29 @@ namespace BookingSystem
 
         public IEnumerable<int> GetAvailableRooms(DateTime date)
         {
-         
-            foreach(KeyValuePair<int,ReservationInfo> item in Reservations)
+            var nonBookedRooms = rooms.Except(Reservations.Keys);// start with rooms that are not in Reservations dictionary i.e. not booked for anu dates
+
+            foreach(KeyValuePair<int,List<ReservationInfo>> item in Reservations)
             {
-                if (item.Value.StartDate == date )
+                
+                if (item.Value.Any(x => x.BookedDate == date))
                 {
-                   // item.Key room is not available on date
+                   // no rooms on this date
                 }
                 else
                 {
                     // room 
-                    yield return item.Key;
+                    nonBookedRooms.ToList().Add(item.Key);
                 }
             }
-            
+            return nonBookedRooms;
+
+
         }
 
         public bool IsRoomAvailable(int room, DateTime date)
         {
-            return !Reservations.Any(x => x.Key == room && x.Value.StartDate == date);
+            return !Reservations.Any(x => x.Key == room && x.Value.Any(r=>r.BookedDate == date));
         }
     }
 }

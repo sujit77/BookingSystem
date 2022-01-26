@@ -9,7 +9,7 @@ namespace BookingSystem
     public class ReservationInfo
     {
         public int RoomId;
-        public DateTime StartDate;
-        public DateTime EndDate;
+        public DateTime BookedDate;
+ 
     }
 }
